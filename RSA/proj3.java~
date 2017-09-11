@@ -1,0 +1,676 @@
+/*
+ * Project #3 - CS 342
+ * 
+ * Team Members: David Cho and Aiwan Hazari
+ * 
+ * Description: 
+ * 
+ * 
+ */
+
+import javax.swing.*;
+import java.awt.*;
+import java.io.*;
+import java.io.File;
+import java.lang.*;
+import java.math.BigInteger;
+import java.awt.event.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.*;
+//libraries to make XML files
+import org.w3c.dom.*;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.FactoryConfigurationError; 
+import javax.xml.parsers.ParserConfigurationException; 
+import org.xml.sax.SAXException; 
+import org.xml.sax.SAXParseException; 
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.dom.DOMSource; 
+import javax.xml.transform.stream.StreamResult;
+
+
+public class proj3 extends JFrame implements ActionListener
+{
+  private static JLabel primeInstruc;
+  private JButton enterPrimes;
+  private JButton filePrimes;
+  private JButton createKeys;
+  private JButton blockMsg;
+  private JButton unblockMsg;
+  private JButton rsaEnDe;
+  
+  public static float[] primes; 
+  public static readFile fileRd;
+  public static String primeNumbersFile;
+  public static int primeArrSize;
+  
+  public static rsaAlg rsa;
+  public static blocking block;
+  
+  public static String originalMsgFile;
+  public static String blockAsciiMsgFile;
+  public static String blockFile;
+  public static String xmlPublicFile;
+  public static String xmlPrivateFile;
+  public static String pubKeyTag; 
+  public static String privKeyTag;
+   
+  public proj3()
+  {
+    //make gui
+    super( "RSA Encryption/Decryption" );
+
+    setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
+    getContentPane().setLayout(new BorderLayout());
+    getContentPane().setLayout(new GridLayout(4, 1, 5, 5));
+ 
+    //button for making keys
+    createKeys = new JButton("Create public/private keys");
+    getContentPane().add (createKeys);
+    createKeys.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                      getPubPrivKeys();
+                    }
+                });
+
+    //button for blocking a message
+    blockMsg = new JButton("Block a message");
+    getContentPane().add (blockMsg);
+    blockMsg.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    blockMsg();
+                }
+            });
+    
+    //button for unblocking a message
+    unblockMsg = new JButton("Unblock a message");
+    getContentPane().add (unblockMsg);
+    unblockMsg.addActionListener(new ActionListener() {
+                @Override
+    public void actionPerformed(ActionEvent e) {
+                    unblock();
+                }
+            });
+    
+    //button for encrypting and decrypting
+    rsaEnDe = new JButton("Encrypt/Decrypt");
+    getContentPane().add (rsaEnDe);
+    rsaEnDe.addActionListener(new ActionListener() {
+                @Override
+    public void actionPerformed(ActionEvent e){
+                    endecode();
+                }
+            });
+    
+    setSize( 400, 400 );
+    setVisible( true );
+  }
+   
+  
+  // Function to check whether a number is prime or not 
+  // (Code referenced from: http://www.mkyong.com/java/how-to-determine-a-prime-number-in-java/)
+   boolean isPrime(float n) 
+   {
+      //check if n is a multiple of 2
+      if (n%2==0) 
+        return false;
+      //if not, then just check the odds - dont check all the multiples of 2 
+      // efficient for large numbers
+      for(int i=3;i*i<=n;i+=2) 
+      {
+        if(n%i==0)
+            return false;
+      }
+     return true;
+    }
+  
+   //Function to input the prime numbers from a user (about 20 values)
+   private void inputPrimesFromUser()
+   {
+    //get 20 prime numbers from user
+    for(int i = 0; i < 20; i++)
+    {
+     String num = JOptionPane.showInputDialog("Enter a prime number:");
+     //user didn't enter anything
+     if(num == null)
+     {
+      i = i -1;
+      continue;
+     }
+     boolean verifyPrime;
+     verifyPrime = isPrime((Float.valueOf(num)));
+     if(verifyPrime == true)
+     {
+      //System.out.println("Number is prime!");
+      primes[i] = Float.valueOf(num);
+     }
+     else
+     {
+      JOptionPane.showMessageDialog(null, "Number is not prime! Try again");
+      i = i -1;
+     }
+    }
+    
+    JOptionPane.showMessageDialog(null, "Done inputting primes!");
+  }
+  
+  
+  //Function to get prime numbers from a file rather than user input
+  void getPrimesFromFile(readFile fileRd)
+  {
+    fileRd.openFile(primeNumbersFile);
+    primes = fileRd.readFile(primeArrSize);
+    fileRd.closeFile();
+  }
+  
+  
+  //Function which initiates getting primes (from user or file)
+  public void getPrimes()
+    {
+      String cmd = JOptionPane.showInputDialog("Enter 'input' if you want to input primes, otherwise enter 'file' to get primes from file");
+      System.out.println(cmd);
+      if((cmd.equals( "input")) || (cmd.equals( "Input")) || (cmd.equals( "INPUT")))
+        inputPrimesFromUser();
+      else
+      {
+        fileRd = new readFile();
+        getPrimesFromFile(fileRd);
+      }
+     }
+  
+ 
+  // main - calls all file names and class initializations for continuous use
+  public static void main(String args[])
+  {   
+    primeArrSize =  20;
+    primes = new float[primeArrSize];
+    
+    primeNumbersFile = "primeNumbers.txt";
+    originalMsgFile = "originalMsg.txt";
+    blockAsciiMsgFile = "asciiMsgFile.txt";
+    xmlPublicFile = "publicKey.xml";
+    xmlPrivateFile = "privateKey.xml";
+    
+    rsa = new rsaAlg();
+    block = new blocking();
+    
+    new proj3();   //gui
+  }   
+
+  
+  //RSA Algorithm class
+  public static class rsaAlg
+  {
+    private String n;   // n = p * q
+    private String e;
+    private String d;
+    private String pStr;   //prime #1
+    private String qStr;   //prime #2
+    //for less redundant calculations store the float of p and q as well
+    private float p;
+    private float q;
+   
+    //find if 2 numbers are relatively coprime
+    boolean isCoPrime(float x, float y)
+   {
+     //find the maximum we will divide until
+     float max;
+     if(x >= y)
+       max = x;
+     else
+       max =  y;
+     
+     //check all numbers upto max to see if there is any divisibility 
+     int numDivBy = 0;
+     for(int i = 2; i <= max; i++)
+     {
+       if((x % i ==0) && (y % i == 0))  //they ARE divisible by this number
+       {
+         numDivBy++;  //increment how many numbers they are both divisible by
+         break;   //if we incremented at all we don't have relatively coprime numbers - so break
+       }
+     }
+     
+     //if there are no numbers both are divisible by, they are coprime
+     if(numDivBy == 0)
+       return true;
+     else
+       return false;
+    }
+    
+    //Function to do calculations and get public and private keys 
+    void getPublicPrivateKey(float p, float q)
+    {
+      float n = p * q;
+      float psi = (p-1) * (q -1);
+      
+      System.out.println("n: " + n); 
+      System.out.println("psi: " + psi);
+      
+      //find e -> e < n and coprime to psi
+      float e = -1;
+      boolean verifyCoPrime;
+      //to find e, look through all values less than n
+      for(float i = 2; i < n; i++)
+      {
+         verifyCoPrime = isCoPrime(i, psi);
+         if(verifyCoPrime == true)
+         {
+           e = i;
+           break;
+         }
+      }
+      //check if e changed from original -1
+      if(e == -1)
+      {
+        JOptionPane.showMessageDialog(null,"ERROR: Prime numbers are not relatively co-prime to find private and public keys!");
+        System.exit(0);
+      }
+      System.out.println("e: " + e);
+      //now find d
+      float d = 1 / (e % psi);
+      System.out.println("d: " + d);
+      
+      //store public and private keys into class variable
+      String eStr = "" + String.valueOf(e);
+      String nStr = "" + String.valueOf(n);
+      String dStr = "" + String.valueOf(d);
+      String pStr = "" + String.valueOf(p);
+      String qStr = "" + String.valueOf(q);
+      this.e = eStr;
+      this.n = nStr;
+      this.d = dStr;
+      this.p = p;
+      this.q = q;
+      this.pStr = pStr;
+      this.qStr = qStr;
+    }
+    
+    //Function to store public and private keys in an XML file
+    void storeKeysInXML(String n, String e, String d)
+    {
+      //make public key file
+      try
+      {
+        DocumentBuilderFactory docBuildFac = DocumentBuilderFactory.newInstance();
+        DocumentBuilder docBuild = docBuildFac.newDocumentBuilder();
+        
+        Document doc = docBuild.newDocument();
+        
+        Element elem = doc.createElement(pubKeyTag);
+        doc.appendChild(elem);
+        
+        Element eInfo = doc.createElement("evalue");
+        eInfo.appendChild(doc.createTextNode(e));
+        elem.appendChild(eInfo);
+        
+        Element nInfo = doc.createElement("nvalue");
+        nInfo.appendChild(doc.createTextNode(n));
+        elem.appendChild(nInfo);
+        
+        TransformerFactory transformerFac = TransformerFactory.newInstance();
+        Transformer trans = transformerFac.newTransformer();
+        DOMSource source = new DOMSource(doc);
+        StreamResult strResult = new StreamResult(new File(xmlPublicFile));
+        trans.transform(source, strResult);
+      }
+      catch(Exception e2)
+      {
+        System.out.println("Failed to make public key xml file! Exiting...");
+        System.exit(0);
+      }
+      
+      
+      //make private key xml file
+      try
+      {
+        DocumentBuilderFactory docBuildFac2 = DocumentBuilderFactory.newInstance();
+        DocumentBuilder docBuild2 = docBuildFac2.newDocumentBuilder();
+        
+        Document doc2 = docBuild2.newDocument();
+        
+        Element elem2 = doc2.createElement(privKeyTag);
+        doc2.appendChild(elem2);
+        
+        Element dInfo = doc2.createElement("dvalue");
+        dInfo.appendChild(doc2.createTextNode(d));
+        elem2.appendChild(dInfo);
+        
+        Element nInfo2 = doc2.createElement("nvalue");
+        nInfo2.appendChild(doc2.createTextNode(n));
+        elem2.appendChild(nInfo2);
+        
+        TransformerFactory transformerFac2 = TransformerFactory.newInstance();
+        Transformer trans2 = transformerFac2.newTransformer();
+        DOMSource source2 = new DOMSource(doc2);
+        StreamResult strResult2 = new StreamResult(new File(xmlPrivateFile));
+        trans2.transform(source2, strResult2);
+      }
+      catch(Exception pk)
+      {
+        System.out.println("Failed to make private key! Exiting...");
+        System.exit(0);
+      }
+    }
+    
+    //Function to perform the encryption and decryption operations
+    void deEnCrypt(String blockFileName, String keyFileName, String newBlockFile)
+    {
+      String item1, item2;    //public or private key items  ( in order of -> item1 = e OR d  and item2 = n )
+      String xmlFile;
+      //Read xml file and store pair of values 
+      DocumentBuilderFactory docBuildFacGet = DocumentBuilderFactory.newInstance();
+      DocumentBuilder docBuildGet = docBuildFacGet.newDocumentBuilder();
+      Document docGet;
+      docGet.normalize();
+      NodeList list;
+      Node node;
+      
+      //check if public or private key is needed & read its XML file to get each key
+      if((keyFileName.equals("public")) || (keyFileName.equals("Public")) || (keyFileName.equals("PUBLIC")))    //public key file
+      {
+        xmlFile = xmlPublicFile;
+        
+        docGet = docBuildGet.parse(XMLReader.class.getResourceAsStream(xmlFile));
+        list = docGet.GetElementsByTagName(pubKeyTag);    //key tht user inputted
+        node = list.item(0);
+        
+        Element elem = (Element) node;
+        item1 = elem.getElementsByTagName("evalue").item(0).getTextContent();
+        item2 = elem.getElementsByTagName("nvalue").item(0).getTextContent();
+        
+      }
+      else    //private key file
+      {
+        xmlFile = xmlPrivateFile;
+        docGet = docBuildGet.parse(XMLReader.class.getResourceAsStream(xmlFile));
+        
+        list = docGet.GetElementsByTagName(privKeyTag);
+        node = list.item(0);
+        
+        Element elem = (Element) node;
+        item1 = elem.getElementsByTagName("dvalue").item(0).getTextContent();
+        item2 = elem.getElementsByTagName("nvalue").item(0).getTextContent();
+    
+      }
+      
+      //Read the blockFile to get input numbers and output this onto a new file
+      String outputValStr;
+      double outputVal;
+      PrintWriter newFile;
+      Scanner inputFile;
+      //write a new Block file
+      try
+      {
+        newFile = new PrintWriter(newBlockFile, "UTF-8");
+        
+        //get input values and store outputs into new file
+        try
+        {
+          inputFile = new Scanner(new File(blockFileName));
+          String numStr;
+          double num;
+          double item1Num = Double.valueOf(item1);
+          double item2Num = Double.valueOf(item2);
+          while(inputFile.hasNext())
+          {
+            numStr = inputFile.next();
+            num = Double.valueOf(numStr);
+            //do equation to get ouput number for this input number
+            outputVal = (Math.pow(num, item1Num)) % item2Num;
+            
+            outputValStr = Double.toString(outputVal);
+            newFile.println(outputValStr);    //output this number to new file
+          }
+          inputFile.close();
+         }
+        catch(Exception readFile)
+        {
+          System.out.println("Unable to read block file! Exiting...");
+          System.exit(0);
+        }
+        newFile.close();
+      }
+      catch(Exception e)
+      {
+        System.out.println("Unable to make new blocked file! Exiting..."); 
+        System.exit(0);
+      }
+    }
+  }//end class
+  
+  
+  //Class for blocking purposes
+   public static class blocking
+  {
+    String msg;
+    String msgAscii;
+    int blockSize;
+    
+    
+    void reverse(int blockSize)    //unblock
+    {
+      
+    }
+    
+    //Function to block a message received from user
+    void blockMessage(String fileNameToStore, int blockSize)
+    {
+      //write a new file
+      PrintWriter fileOut;
+      try
+      {
+      fileOut = new PrintWriter(fileNameToStore, "UTF-8");
+        
+      String msgNums = this.msgAscii;
+      this.blockSize = blockSize;
+      
+      int msgSize = msgNums.length();
+      
+      int i = msgSize - 1; //start at back of string
+      while(i >= 0)
+      {
+        String blocked = "";
+        //check if we need 0-padding for number
+          if(i < (2*blockSize))
+          {
+            //find out how many 0s are needed
+            int numZeros = (2*blockSize) - i;
+            for(int addzeros = 0; addzeros < numZeros-1; addzeros++)
+            {
+              blocked += "0";
+            }
+            
+            //now add messageascii values
+            for(int restMsg = 0; restMsg <= i; restMsg++)
+            {
+              blocked += msgNums.charAt(restMsg);
+            }
+            i = -1;  //end loop since now we got every digit
+          }
+          else    //no 0-padding needed - block off
+          {
+            int start = i - (2*blockSize) +1;    //test: 55 - 16 = 39 + 1 = 40 --> index 40 is included
+            for(int blk = 0; blk < 2*blockSize; blk++)   //block off message with block*2 size parts
+            {
+              blocked += msgNums.charAt(start);    //add letters from front of this block
+              start++;
+            }
+          }
+          
+          //store block-strings in a file
+          fileOut.println(blocked);
+          
+          i = i - (2*blockSize);  //start at new index past blocked off digits
+       }
+      fileOut.close();
+      }
+      catch(Exception e){
+        System.out.println("Block file not made! Exiting..."); 
+        System.exit(0);
+      }
+    }
+    
+    //Function to convert message to ascii and store this in a file
+    void convertToAscii(String asciiMsgFile)
+    {
+      //store ascii message in a new file
+      PrintWriter fileOut;
+      try
+      {
+       String msg = this.msg;
+       int msgSize = msg.length();
+ 
+          fileOut = new PrintWriter(asciiMsgFile, "UTF-8");    //make a new file to output to
+          BigInteger msgAscii = BigInteger.valueOf(0);  //initialize to 0
+          //go through all letters and add their (ascii value - 27)*(100^position)
+          for(int i = 0; i < msgSize; i++)
+          {
+            int temp = (int)msg.charAt((i)) - 27;   //ascii value
+
+            //get position's power of 100
+            BigInteger powtemp = new BigInteger("100");    
+            BigInteger pt2;
+            pt2 = powtemp.pow(i);
+
+            //multiply these 2 values
+            BigInteger bt = pt2.multiply(BigInteger.valueOf(temp));
+        
+            //add to overall sum of each character's value
+            msgAscii =  msgAscii.add(bt);
+          }
+
+          String mStr = "" + msgAscii;
+      
+          fileOut.println(mStr);  //store ascii message in a file
+          this.msgAscii = mStr;   //store this value as string in class as well
+          fileOut.close();
+          
+      }
+        catch(Exception e)
+        {
+          System.out.println("File with ASCII-Message not made! Exiting..."); 
+          System.exit(0);
+        }
+     }
+  }//end class
+   
+  
+  //Function for Button #1 - get public and private keys & store in XML file
+  public void getPubPrivKeys()
+  {
+    //get and store prime values
+    getPrimes();
+    
+    //choose 2 primes values RANDOMLY from array of primes
+    int r1, r2;
+    Random rand = new Random();
+    r1 = rand.nextInt(19) + 0; //19 is the maximum and the 0 is our minimum 
+    r2 = rand.nextInt(19) + 0; //19 is the maximum and the 0 is our minimum 
+    
+    //use rsa algorithm to get n, e, and d
+    rsa.getPublicPrivateKey(primes[r1], primes[r2]);
+    
+    String[] pubKey = new String[2];
+    String[] privKey = new String[2];
+    pubKey[0] = rsa.e;
+    pubKey[1] = rsa.n;
+    privKey[0] = rsa.d;
+    privKey[1] = rsa.n;
+    System.out.println("Public Key: " + pubKey[0] + ", " + pubKey[1] + ".  Private Key: " + privKey[0]  + ", "+ privKey[1]);
+    
+    String n = rsa.n;
+    String e = rsa.e;
+    String d = rsa.d;
+    
+    //get user input for name of keys' tags
+    pubKeyTag = JOptionPane.showInputDialog("Enter your desired public key name: ");
+    privKeyTag = JOptionPane.showInputDialog("Enter your desired private key name: ");
+    
+    rsa.storeKeysInXML(n, e, d);   //store in an XML file
+  }
+   
+  //Function for Button #2 - block a message
+  public void blockMsg()
+  {
+    //get user input of message to block
+    String msg = JOptionPane.showInputDialog("Enter a message you want to encrypt: ");
+    
+    //store message into a new file & to class
+      PrintWriter fileOut;
+      try
+      {
+        fileOut = new PrintWriter(originalMsgFile, "UTF-8");
+        fileOut.println(msg);  //store original message into file
+        fileOut.close();
+      }
+      catch(Exception e)
+      {
+        System.out.println("Unable to make message file! Exiting..."); 
+        System.exit(0);
+      }
+      
+     block.msg = msg;
+     
+      //get blocking size from user
+    String blockSizeStr = JOptionPane.showInputDialog("Enter a blocking size: ");
+    int blockSize = Integer.parseInt(blockSizeStr);
+    
+    block.convertToAscii(blockAsciiMsgFile);   //convert message to ascii equivalent & store in a file
+    
+    //get filename of blocks-file from user
+    blockFile = JOptionPane.showInputDialog("Enter the filename to store the encrypted blocks: ");
+    
+    block.blockMessage(blockFile, blockSize);   //block message and store in file
+  }
+  
+  //Function for Button #3 - unblock the code
+  public void unblock()
+  {
+  }
+  
+  
+  //Function for Button #4 - encrypt/decrypt 
+  public void endecode()
+  {
+    //get the newBlockFile name from user
+    String newBlkFileName = JOptionPane.showInputDialog("Enter the filename to store the Output Numbers: ");
+    String keyFileName = JOptionPane.showInputDialog("Enter 'private' or 'public' to choose which key file to use: ");
+    
+    rsa.deEnCrypt(blockFile, keyFileName, newBlkFileName);
+  }
+  
+  
+  // Action performed function here - but overrided earlier
+  public void actionPerformed( ActionEvent event )
+      {
+         //JOptionPane.showMessageDialog( null,
+            //"You pressed: " + event.getActionCommand() );
+         
+         if ( event.getSource() == createKeys )
+         {
+           
+           System.out.println("uh");
+           
+         }
+         else if( event.getSource() == blockMsg)
+         {
+           System.out.println("block message pressed");
+         }
+         else    
+         {
+           System.out.println("rsa pressed");
+         }  
+      }
+}

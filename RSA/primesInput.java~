@@ -1,0 +1,40 @@
+public class primesInput extends JFrame implements ActionListener
+{
+  private static JLabel primeInstruc;
+  private JButton inputPrimes;
+  private JButton filePrimes;
+    
+   
+  public primesInput()
+  {
+    super( "Get Prime Numbers" );
+
+    setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
+    getContentPane().setLayout(new BorderLayout());
+ 
+    inputPrimes = new JButton("InputPrimes");
+    getContentPane().add (inputPrimes, BorderLayout.WEST );
+    inputPrimes.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                         getPrimes();
+                    }
+                });
+
+
+    filePrimes = new JButton("Block a message");
+    getContentPane().add (filePrimes, BorderLayout.EAST );
+    filePrimes.addActionListener(new ActionListener() {
+                @Override
+    public void actionPerformed(ActionEvent e) {
+                    System.out.println("override files pressed");
+                }
+            });
+    
+    primeInstruc - new JLabel("Choose whether to Input your own prime number OR Get primes from a File");
+    getContentPane().add (filePrimes, BorderLayout.NORTH );
+    
+    setSize( 200, 200 );
+    setVisible( true );
+
+  }

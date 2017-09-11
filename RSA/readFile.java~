@@ -1,0 +1,42 @@
+import java.io.*;
+import java.util.*;
+
+public class readFile
+{
+  private Scanner file;
+  
+  //open file
+  public void openFile(String fileName)
+  {
+    try{
+      file = new Scanner(new File(fileName));
+    }
+    catch(Exception fErr)
+    {
+      System.out.println("Cannot find file " + fileName);
+      System.exit(0);
+    }
+  }
+  
+  //read and store values from file
+  public float[] readFile(int primeSize)
+  {
+    int i = 0;
+    float[] newPrimes = new float[primeSize];
+    
+    while(file.hasNext())
+    {
+      String num = file.next();
+      newPrimes[i] = Float.valueOf(num);
+      i++;
+    }
+    
+    return newPrimes;
+  }
+  
+  //close the file
+  public void closeFile()
+  {
+    file.close();
+  }
+}
